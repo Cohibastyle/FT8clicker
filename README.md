@@ -4,6 +4,8 @@
 
 FT8Clicker is an automation tool designed to simplify FT8 digital mode communication by automating repetitive button clicks in FT8 software like WSJT-X. It intelligently manages transmission enabling, CQ calls, and band changes while incorporating safety features to prevent unsupervised operation.
 
+![FT8Clicker Interface](screenshots/ft8clicker-interface1%20screenshot.png.png)
+
 ## Why FT8Clicker?
 
 I created FT8Clicker because I was tired of manually pressing the "Enable Tx" button every minute during FT8 sessions. Traditional FT8 operation requires frequent intervention, but I wanted longer automation intervals for more efficient operation. However, I also wanted the automation to be intelligent and safe—not completely unsupervised. FT8Clicker achieves this by:
