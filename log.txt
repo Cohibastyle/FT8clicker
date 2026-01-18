@@ -1,0 +1,11 @@
+[2026-01-18 10:14:29] Capture method: macOS window image
+[2026-01-18 10:14:29] Button Enable Tx detected OFF
+[2026-01-18 10:14:29] Button Tx 6 detected OFF
+[2026-01-18 10:14:35] Started clicking
+[2026-01-18 10:14:36] Auto-clicked Enable Tx
+[2026-01-18 10:14:36] Button Enable Tx detected ON
+[2026-01-18 10:14:49] Manual click on tx6
+[2026-01-18 10:16:05] Auto-clicked CQ
+[2026-01-18 10:16:16] Button Enable Tx detected OFF
+[2026-01-18 10:16:16] Auto-clicked Enable Tx
+[2026-01-18 10:16:17] Button Enable Tx detected ON

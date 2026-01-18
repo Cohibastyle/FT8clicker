@@ -1,0 +1,28 @@
+{
+    "click_interval": 0.5,
+    "visible_bands": [],
+    "cq_time": 90,
+    "cqs_remaining": 10,
+    "app_time": 1800,
+    "learned_buttons": {
+        "enable_tx": {
+            "pos": [
+                66,
+                -408
+            ],
+            "states": {
+                "(255, 255, 255)": "inactive",
+                "(255, 0, 0)": "active"
+            }
+        },
+        "tx6": {
+            "pos": [
+                298,
+                -185
+            ],
+            "states": {
+                "(255, 255, 255)": "inactive"
+            }
+        }
+    }
+}
