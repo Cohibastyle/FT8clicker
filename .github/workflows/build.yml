@@ -82,10 +82,11 @@ jobs:
       with:
         name: FT8Clicker-macOS
     - name: Create Release
-      uses: softprops/action-gh-release@v1
-      with:
-        files: |
-          FT8Clicker.exe
-          FT8Clicker.dmg
+      run: |
+        TAG_NAME=${GITHUB_REF#refs/tags/}
+        gh release create "$TAG_NAME" \
+          --title "FT8Clicker $TAG_NAME" \
+          --notes "Automated release of FT8Clicker $TAG_NAME" \
+          FT8Clicker.exe FT8Clicker.dmg
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
