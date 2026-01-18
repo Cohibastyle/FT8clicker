@@ -54,7 +54,12 @@ FT8Clicker automates the FT8 workflow by:
 - Python 3.x
 - Compatible FT8 software (WSJT-X recommended)
 
-### Steps
+### Downloads
+Pre-built executables are available for download from the [Releases](https://github.com/yourusername/FT8Clicker/releases) page:
+- **Windows**: Download `FT8Clicker.exe`
+- **macOS**: Download `FT8Clicker.dmg`
+
+### From Source
 1. Clone or download this repository
 2. Install dependencies:
    ```bash

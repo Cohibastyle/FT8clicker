@@ -1,0 +1,91 @@
+name: Build Executables
+
+on:
+  push:
+    branches: [ main ]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pyinstaller
+    - name: Build Windows executable
+      run: |
+        pyinstaller --onefile --windowed --name FT8Clicker main.py
+    - name: Upload Windows executable
+      uses: actions/upload-artifact@v4
+      with:
+        name: FT8Clicker-Windows
+        path: dist/FT8Clicker.exe
+
+  build-mac:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pyinstaller
+    - name: Build macOS app
+      run: |
+        pyinstaller --onedir --windowed --name FT8Clicker main.py
+    - name: Install create-dmg
+      run: |
+        brew install create-dmg
+    - name: Create DMG
+      run: |
+        create-dmg \
+          --volname "FT8Clicker" \
+          --window-pos 200 120 \
+          --window-size 800 400 \
+          --icon-size 100 \
+          --icon "FT8Clicker.app" 200 190 \
+          --hide-extension "FT8Clicker.app" \
+          --app-drop-link 600 185 \
+          "FT8Clicker.dmg" \
+          "dist/FT8Clicker.app"
+    - name: Upload macOS DMG
+      uses: actions/upload-artifact@v4
+      with:
+        name: FT8Clicker-macOS
+        path: FT8Clicker.dmg
+
+  release:
+    needs: [build-windows, build-mac]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && contains(github.ref, 'refs/tags/')
+    steps:
+    - name: Download Windows artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: FT8Clicker-Windows
+    - name: Download macOS artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: FT8Clicker-macOS
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          FT8Clicker.exe
+          FT8Clicker.dmg
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
