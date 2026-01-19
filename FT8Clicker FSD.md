@@ -1,4 +1,4 @@
-FT8Clicker v0.6 Functional Specification Document
+FT8Clicker Functional Specification Document
 
 ## Table of Contents
 - [Introduction](#introduction)
@@ -28,6 +28,7 @@ This app is designed to facilitate FT8 communication by automating the clicking 
 - Automated clicking for FT8 signals by moving mouse and simulating clicks
 - Customizable timers for forcing a CQ and to change bands.
 - User-friendly interface inspired by Yaesu FTDX Series Radio
+- Multiple visual themes including Light, Dark, and Blue modes for different viewing preferences
 - Compatibility with popular FT8 software (WSJTX, etc.)
 - Support for Mac, Windows, and Linux with native screen capture backends
 - Compatible with multi-monitor setups
@@ -48,7 +49,7 @@ This app is designed to facilitate FT8 communication by automating the clicking 
 - The graphical display must show a real-time timeline of clicks with color-coded indicators.
 - Circular progress indicators must display remaining time/count for CQ Time, CQs Remaining, and App Time.
 - The graph must auto-scale X-axis from 10 to 100 bars and Y-axis from 30 seconds upward.
-- CQ counter must decrement on both manual and automatic clicks.- Band cycling must only occur through learned bands, with appropriate logging if none available.
+- CQ counter must decrement on both manual and automatic clicks and reset when a QSO is established (Tx Enable clicked).- Band cycling must only occur through learned bands, with appropriate logging if none available.
 - Interactive elements must display delayed tooltips (3 seconds) with contextual help.- Runaway detection must stop automation after 3 short QSOs (<5 seconds).
 
 ### Non-Functional Requirements
@@ -69,11 +70,12 @@ This app is designed to facilitate FT8 communication by automating the clicking 
 2. Launch FT8Clicker.
 3. Learn the positions of the FT8 buttons by clicking the "Learn" button and following the prompts. The app will capture the button's position and color for accurate state detection.
 4. Configure the click interval and other settings as needed.
-5. Start the clicking process by pressing the "Start" button.
-6. Monitor the FT8 software for automated clicks based on button states.
-7. Observe the circular progress indicators and real-time graph for visual feedback.
-8. Hover over buttons and arcs for 3 seconds to see contextual help tooltips.
-9. Use the Help button for an in-app guide.
+5. Optionally, select your preferred visual theme from View → Theme menu (Light, Dark, or Blue).
+6. Start the clicking process by pressing the "Start" button.
+7. Monitor the FT8 software for automated clicks based on button states.
+8. Observe the circular progress indicators and real-time graph for visual feedback.
+9. Hover over buttons and arcs for 3 seconds to see contextual help tooltips.
+10. Use the Help button for an in-app guide.
 
 ### Troubleshooting
 - If the application does not start, ensure that your system meets the minimum requirements.
@@ -85,7 +87,23 @@ This app is designed to facilitate FT8 communication by automating the clicking 
 
 ## Design
 ### User Interface Layout
-The look and feel will be inspired by a Yaesu FTDX Series Radio.  Black Background with white, blue and orange text and accents and organized into clear sections for ease of use. 
+The look and feel will be inspired by a Yaesu FTDX Series Radio. Black Background with white, blue and orange text and accents and organized into clear sections for ease of use. There is the ability to change the themes of the app. The themes include Dark Mode (default), Light Mode, and Blue Mode. The theme will affect the font, colors of the buttons, text, and background to match the selected theme style.
+
+#### Theme System
+The application supports multiple visual themes to accommodate different user preferences and viewing conditions:
+
+- **Light Theme**: Clean white background with dark text, suitable for bright environments
+- **Dark Theme**: Dark background with light text, ideal for low-light conditions and reduced eye strain
+- **Blue Theme**: Blue-tinted interface with darker text, providing a distinctive visual style
+
+Themes are accessible through the View → Theme menu and are automatically saved to user settings. Each theme comprehensively styles:
+- Main window background and text colors
+- Group box backgrounds and titles
+- Button appearances (normal, hover states)
+- Text input fields and labels
+- Progress indicators and graphical elements
+
+The theme selection persists between application sessions, ensuring a consistent user experience.
 
 The app consists of the following main sections:
 1. **Header**: Displays the app name and version and author.
@@ -115,7 +133,7 @@ The app consists of the following main sections:
 
 #### Main Function Buttons
 - **Start/Stop Button**: STOPPED (red) pauses all counters; RUNNING (green) resets counters to settings and starts automation.
-- **Pause Button**: Only visible when running. PAUSE ON (yellow) pauses all automation and timers; PAUSE OFF (white) resumes.
+- **Pause Button**: Only visible when running. PAUSED (yellow) pauses all automation and timers; PAUSE (white) resumes.
 - **Settings Button**: Opens the settings menu where users can customize click intervals, button visibility, values for *CQTimeRemaining*, *CQsRemaining*, *AppTimeRemaining*, and other preferences. Unlearn all or some of the learned buttons.
 - **Help Button**: Opens a resizable popup guide covering controls, learn/locate, and permissions.
 - All buttons will be labeled with their keyboard shortcut for easy reference, e.g., (S)tart, (P)ause.
@@ -128,17 +146,18 @@ The app consists of the following main sections:
     - CQ Time Remaining: Arc showing countdown until auto-CQ, resets on Tx Enable. Green=plenty, Yellow=warning, Red=critical.
     - CQs Remaining: Arc showing count until band change. Decrements on each CQ (manual or auto).
     - App Time Remaining: Arc showing overall runtime countdown. Counts down total runtime.
-  - Countdown timer until CQ is auto-pressed (*CQTimeRemaining*).
+  - Countdown timer until CQ is auto-pressed (*CQ Time Remaining*).
     - Is reset whenever the Enable TX is pressed automatically.
     - When reached, the app will automatically click the CQ button.
-    - Default value 90 Seconds, adjustable from 60 -3000 seconds.
-  - Countdown counter of number of CQs until band change (*CQsRemaining*).
+    - Default value 200 Seconds, adjustable from 60 -3000 seconds in 20 second increments.
+  - Countdown counter of number of consecutive CQs until band change (*Consecutive CQs Remaining*).
     - Decrements on both manual and automatic CQ clicks.
+    - Resets when a QSO is established (Tx Enable clicked).
     - When reached, the app will automatically click the next learned band to the right of the current band, or back to the first band if at the end.
-    - Default Value 10, Adjustable from 0 - 100.
-  - Countdown timer of overall app runtime (*AppTimeRemaining*).
+    - Default Value 3, Adjustable from 0 - 100.
+  - Countdown timer of overall app runtime (*App Time Remaining*).
     - When reached, the app will automatically stop clicking.
-    - Default value of 30 minutes, adjustable from 5 minute to 240 minutes.
+    - Default value of 60 minutes, adjustable from 5 minute to 240 minutes.
 - All arc indicators display delayed tooltips (3 seconds hover) with detailed explanations.
 
 #### Log
@@ -174,23 +193,6 @@ The app consists of the following main sections:
 For support and updates, visit the official FT8Clicker website or contact the support team via email at the github repository
 ## License
 This software is licensed under the MIT License. See the LICENSE file for more information.
-## Changelog
-### v0.6
-- Implemented accurate color-based button state detection using majority color sampling
-- Added native Quartz screen capture for macOS to avoid cursor interference
-- Added macOS Screen Recording permission checks and guidance
-- Enhanced cross-platform compatibility with platform-specific backends
-- Improved button learning process with real-time color capture and ON/OFF state detection
-- Added multi-monitor support
-- Enhanced logging with RGB color names, sampled data, and ON/OFF state changes
-- Real-time learned button background updates from pixel color
-- Added circular progress indicators for CQ Time, CQs Remaining, and App Time
-- Implemented real-time event timeline graph with auto-scaling axes (X: 10-100 bars, Y: 30s+)
-- Added runaway detection for short QSOs (<5 seconds)
-- CQ counter now decrements on both manual and automatic clicks
-- Added cooldown mechanism after Tx Enable clicks
-- Implemented delayed hover tooltips (3 seconds) for all buttons and arc indicators
-- Band cycling now only occurs through learned bands with appropriate error handling
 ## Disclaimer
 Use this software at your own risk. The developers are not responsible for any damages or issues arising from the use of this application.  
 Please ensure compliance with all relevant regulations and guidelines when using automated tools for FT8 communication.
@@ -218,13 +220,14 @@ Please ensure compliance with all relevant regulations and guidelines when using
   - Band cycling only through learned bands, with logging if none available
 
 ## Settings and Configuration
-- **Click Interval**: Adjustable from 100ms to 3000ms (default: 500ms) for time between automated clicks.
+- **Click Interval**: Adjustable from 100ms to 10000ms (default: 1 second) for time between automated clicks, with 1 second increments.
 - **Visible Bands**: Checkbox list to show/hide band buttons (default: 40m, 20m, 17m, 15m, 12m, 10m). This affects which band buttons are displayed in the Button List and next band selection during cycling.
 - **Timers**:
-  - *CQTimeRemaining*: Customizable (default: 90 seconds); resets on auto-Tx Enable.
-  - *CQsRemaining*: Customizable (default: 10); triggers band change.
-  - *AppTimeRemaining*: Customizable (default: Unlimited); stops app when reached.
+  - *CQ Time Remaining*: Customizable (default: 200 seconds, increments of 20 seconds); resets on auto-Tx Enable.
+  - *Consecutive CQs Remaining*: Customizable (default: 3); triggers band change. Resets when a QSO is established (Tx Enable clicked).
+  - *App Time Remaining*: Customizable (default: 60 minutes); stops app when reached.
 - **Unlearn Buttons**: Option to unlearn all or specific learned positions.
+- **Theme Selection**: Choose from Light, Dark, or Blue visual themes (default: Light). Accessible via View → Theme menu.
 - **Additional**: Keyboard shortcuts enabled by default; log export writes to log.txt in the working directory.
 
 ## Testing and Validation
@@ -250,6 +253,13 @@ For support and updates, visit the official FT8Clicker website or contact the su
 This software is licensed under the MIT License. See the LICENSE file for more information.
 
 ## Changelog
+### v0.7 (Upcoming)
+- Updated default settings: CQ Interval to 1s, CQ Time to 200s, Consecutive CQs Remaining to 3, App Time to 60 minutes
+- CQ Time increments changed to 20 seconds
+- Consecutive CQ counter now resets when QSO established (Tx Enable clicked)
+- Pause button displays "PAUSED" when paused
+- Renamed CQs Remaining to Consecutive CQs Remaining with updated behavior explanation
+- Updated help and documentation
 ### v0.6
 - Accurate color-based state detection with majority sampling
 - macOS Quartz capture with Screen Recording permission guidance
@@ -259,6 +269,7 @@ This software is licensed under the MIT License. See the LICENSE file for more i
 - Runaway detection and automation safeguards
 - Delayed tooltips for enhanced usability
 - Learned band cycling with error handling
+- Multiple visual themes (Light, Dark, Blue) with persistent settings
 ### v0.5
 - Fixed bugs related to click intervals
 - Enhanced user interface

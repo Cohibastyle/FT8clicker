@@ -87,7 +87,7 @@ def state_display(state):
     return state
 
 def get_pixel_color(x, y):
-    # Cross-platform pixel color detection with multi-monitor support
+    # Cross-platform pixel color detection w multi-monitor support
     try:
         if sys.platform == "darwin":
             # macOS: Prefer window-based capture at point to avoid desktop background
@@ -548,11 +548,11 @@ class FT8Clicker(QMainWindow):
                 self.settings = json.load(f)
         else:
             self.settings = {
-                'click_interval': 0.5,
+                'click_interval': 1.0,
                 'visible_bands': ['40m', '20m', '17m', '15m', '12m', '10m'],
-                'cq_time': 90,
-                'cqs_remaining': 10,
-                'app_time': 30*60,
+                'cq_time': 200,
+                'cqs_remaining': 3,
+                'app_time': 60*60,
                 'learned_buttons': {}
             }
         self.visible_bands = self.settings.get('visible_bands', ['40m', '20m', '17m', '15m', '12m', '10m'])
@@ -575,7 +575,7 @@ class FT8Clicker(QMainWindow):
             json.dump(self.settings, f, indent=4)
 
     def init_ui(self):
-        self.setWindowTitle("FT8Clicker v0.6")
+        self.setWindowTitle("FT8Clicker v0.7")
         self.setGeometry(100, 100, 1200, 800)
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
@@ -655,7 +655,7 @@ class FT8Clicker(QMainWindow):
         arcs_layout.setSpacing(10)
         
         self.cq_arc = ArcProgress("CQ Time", "Shows remaining time until automatic CQ. Resets when TX is enabled. Green=plenty, Yellow=warning, Red=critical.")
-        self.cqs_arc = ArcProgress("CQs Left", "Shows remaining CQ calls until automatic band change. Decrements on each CQ (manual or auto).")
+        self.cqs_arc = ArcProgress("Consecutive CQs Left", "Shows remaining consecutive CQ calls until automatic band change. Decrements on each CQ (manual or auto). Resets when a QSO is established.")
         self.app_arc = ArcProgress("App Time", "Shows remaining time until automatic app stop. Counts down total runtime.")
         
         arcs_layout.addWidget(self.cq_arc)
@@ -895,6 +895,11 @@ class FT8Clicker(QMainWindow):
                 self.cqs_remaining -= 1
                 self.cqs_arc.setValue(self.cqs_remaining, self.settings['cqs_remaining'])
             
+            # Reset CQ counter if TX enabled (QSO established)
+            if button_type == 'enable_tx':
+                self.cqs_remaining = self.settings['cqs_remaining']
+                self.cqs_arc.setValue(self.cqs_remaining, self.settings['cqs_remaining'])
+            
             return True
         except Exception as e:
             self.log(f"Error clicking {button_type}: {e}")
@@ -956,6 +961,7 @@ class FT8Clicker(QMainWindow):
                 self.status_label.setText("Status: Running")
                 self.log("Resumed clicking")
                 self.pause_btn.setStyleSheet("background-color: white; color: black;")
+                self.pause_btn.setText("PAUSE")
                 self.cq_timer.start(1000)
                 self.app_timer.start(1000)
                 self.graph_timer.start(100)
@@ -966,6 +972,7 @@ class FT8Clicker(QMainWindow):
                 self.status_label.setText("Status: Paused")
                 self.log("Paused clicking")
                 self.pause_btn.setStyleSheet("background-color: yellow; color: black;")
+                self.pause_btn.setText("PAUSED")
                 self.cq_timer.stop()
                 self.app_timer.stop()
                 self.graph_timer.stop()
@@ -1033,6 +1040,9 @@ class FT8Clicker(QMainWindow):
                             self.click_learned_button('tx6', "Auto-clicked CQ", 'cq')
                             self.cq_remaining = self.settings['cq_time']
                             self.cq_arc.setValue(self.cq_remaining, self.settings['cq_time'])
+                            if self.cqs_remaining > 0:
+                                self.cqs_remaining -= 1
+                                self.cqs_arc.setValue(self.cqs_remaining, self.settings['cqs_remaining'])
                     except Exception as e:
                         self.log(f"Error in auto_cq: {e}")
 
@@ -1165,7 +1175,8 @@ class FT8Clicker(QMainWindow):
         interval_layout.addWidget(QLabel("Click Interval (s):"))
         self.interval_spin = QDoubleSpinBox()
         self.interval_spin.setValue(self.click_interval)
-        self.interval_spin.setRange(0.1, 3.0)
+        self.interval_spin.setRange(0.1, 10.0)
+        self.interval_spin.setSingleStep(1.0)
         interval_layout.addWidget(self.interval_spin)
         layout.addLayout(interval_layout)
 
@@ -1175,12 +1186,13 @@ class FT8Clicker(QMainWindow):
         self.cq_spin = QSpinBox()
         self.cq_spin.setValue(self.settings['cq_time'])
         self.cq_spin.setRange(60, 3000)
+        self.cq_spin.setSingleStep(20)
         cq_layout.addWidget(self.cq_spin)
         layout.addLayout(cq_layout)
 
         # CQs Remaining
         cqs_layout = QHBoxLayout()
-        cqs_layout.addWidget(QLabel("CQs Remaining:"))
+        cqs_layout.addWidget(QLabel("Consecutive CQs Remaining:"))
         self.cqs_spin = QSpinBox()
         self.cqs_spin.setValue(self.settings['cqs_remaining'])
         self.cqs_spin.setRange(0, 100)
@@ -1253,7 +1265,10 @@ class FT8Clicker(QMainWindow):
             "- Enable Screen Recording for Visual Studio Code or your Python app.\n"
             "  System Settings → Privacy & Security → Screen Recording.\n\n"
             "Logs\n"
-            "- The log records mode changes, button states, and automation actions.\n"
+            "- The log records mode changes, button states, and automation actions.\n\n"
+            "Counters\n"
+            "- CQ Time: Counts down until the next automatic CQ call.\n"
+            "- Consecutive CQs Left: Tracks consecutive forced CQ calls. Decrements each time a CQ is sent (manual or auto). Resets when a QSO is established (transmission enabled). When it reaches 0, the band changes automatically.\n"
         )
         layout.addWidget(help_text)
 

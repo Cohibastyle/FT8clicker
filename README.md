@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-FT8Clicker is an automation tool designed to simplify FT8 digital mode communication by automating repetitive button clicks in FT8 software like WSJT-X. It intelligently manages transmission enabling, CQ calls, and band changes while incorporating safety features to prevent unsupervised operation.
+FT8Clicker is an automation tool designed to simplify FT8 digital mode communication by automating repetitive button clicks in FT8 software like WSJT-X. It intelligently manages transmission enabling, CQ calls, and band changes while incorporating safety features to prevent unsupervised operation.  It is best for responding to a pileup, but may not be optimal for DX hunting, as it doesnt have knowledge on Callsigns decoded.
 
 ![FT8Clicker Interface](screenshots/ft8clicker-interface1%20screenshot.png.png)
 
@@ -38,9 +38,9 @@ FT8Clicker automates the FT8 workflow by:
 
 3. **Intelligent Automation**:
    - Automatically enables transmission when the "Enable Tx" button appears inactive
-   - Sends CQ calls after a configurable time interval (default: 90 seconds)
-   - Cycles through learned bands after a set number of CQs (default: 10)
-   - Stops automatically after a maximum runtime (default: 30 minutes)
+   - Sends CQ calls after a configurable time interval (default: 200 seconds)
+   - Cycles through learned bands after a set number of consecutive CQs (default: 3). This counter tracks consecutive forced CQ calls, i.e., when your FT8 application repeatedly calls a station and the station doesn't reply, so when the CQ time runs out, it will force a CQ. The counter resets when a QSO is established (transmission enabled).
+   - Stops automatically after a maximum runtime (default: 60 minutes)
 
 4. **Safety Features**:
    - Runaway detection stops automation after 3 consecutive short QSOs (<5 seconds)
@@ -95,6 +95,15 @@ Enable Screen Recording permission in System Settings → Privacy & Security →
 - Verify button positions are learned correctly
 - In WSJT-X, set TX Watchdog > CQ Time
 
+## Safety Tips
+
+- ensure that you have an auto tuner, so that when the program changes bands, that your antenna is properly tuned.  Or use with only a single band.
+- make sure that your power level is set appropriately for FT8 operation on the bands you are using.
+- make sure that your computer does not go to sleep while the program is running.
+- In order to avoid being flagged as a bot by other hams, please monitor the program while it is running, and make sure to occasionally intervene manually.  The program has been known to malfunciton in certain situations, so please keep an eye on it.
+- Since the program takes control of your mouse, please do not use your computer for other tasks while it is running.
+- Always comply with your local regulations regarding automated transmissions.
+
 ## Requirements
 
 - **Python 3.x**
@@ -127,7 +136,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Disclaimer
 
-Use FT8Clicker at your own risk. Ensure compliance with amateur radio regulations. The developers are not responsible for any damages or issues arising from use of this application.
+This software is provided "as is", without warranty of any kind. The user assumes all responsibility for its use. The author is not liable for any damages arising from its use.
+Please use responsibly and in accordance with amateur radio regulations.
 
 ## Support
 

@@ -7,12 +7,13 @@
     "learned_buttons": {
         "enable_tx": {
             "pos": [
-                66,
-                -408
+                -349,
+                -285
             ],
             "states": {
                 "(255, 255, 255)": "inactive",
-                "(255, 0, 0)": "active",
+                "(255, 0, 0)": "inactive",
+                "(0, 182, 112)": "active",
                 "(0, 0, 0)": "inactive"
             }
         },
@@ -23,7 +24,10 @@
             ],
             "states": {
                 "(255, 255, 255)": "inactive",
-                "(0, 0, 0)": "inactive"
+                "(0, 0, 0)": "inactive",
+                "(128, 128, 128)": "inactive",
+                "(236, 236, 236)": "active",
+                "(23, 23, 23)": "inactive"
             }
         }
     }
