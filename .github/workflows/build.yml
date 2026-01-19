@@ -85,6 +85,10 @@ jobs:
       uses: actions/download-artifact@v4
       with:
         name: FT8Clicker-macOS
+    - name: Move artifacts to root
+      run: |
+        mv FT8Clicker-Windows/FT8Clicker.exe .
+        mv FT8Clicker-macOS/FT8Clicker.dmg .
     - name: Create Release
       run: |
         TAG_NAME=${GITHUB_REF#refs/tags/}
