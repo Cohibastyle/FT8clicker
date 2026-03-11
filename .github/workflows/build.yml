@@ -3,8 +3,14 @@ name: Build FT8Clicker (Windows + macOS)
 on:
   push:
     branches: [ main ]
+    tags:
+      - "v*"
   pull_request:
     branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
 
@@ -35,7 +41,7 @@ jobs:
           echo "Build output:"
           dir dist
 
-      - name: Upload Windows EXE
+      - name: Upload Windows EXE (artifact)
         uses: actions/upload-artifact@v4
         with:
           name: FT8Clicker-Windows
@@ -92,8 +98,41 @@ jobs:
             "FT8Clicker.dmg" \
             "$APP_PATH"
 
-      - name: Upload macOS DMG
+      - name: Upload macOS DMG (artifact)
         uses: actions/upload-artifact@v4
         with:
           name: FT8Clicker-macOS
           path: FT8Clicker.dmg
+
+
+  # -------------------------
+  # RELEASE UPLOAD (only on tag)
+  # -------------------------
+  upload-to-release:
+    name: Upload .exe/.dmg to GitHub Release
+    runs-on: ubuntu-latest
+    needs: [build-windows, build-mac]
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    steps:
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: FT8Clicker-Windows
+          path: release-assets
+
+      - name: Download macOS artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: FT8Clicker-macOS
+          path: release-assets
+
+      - name: List assets
+        run: ls -la release-assets
+
+      - name: Upload assets to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release-assets/FT8Clicker.exe
+            release-assets/FT8Clicker.dmg
