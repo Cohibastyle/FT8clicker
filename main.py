@@ -984,8 +984,7 @@ class FT8Clicker(QMainWindow):
                     self.log(f"Manual click on {button_type}")
                     # Decrement CQ counter if CQ button was clicked manually
                     if button_type == 'tx6' and self.cqs_remaining > 0:
-                        self.cqs_remaining -= 1
-                        self.cqs_arc.setValue(self.cqs_remaining, self.settings['cqs_remaining'])
+                        self.consume_cq_try("Manual")
                     graph_event = 'cq' if button_type == 'tx6' else button_type
                     self.update_graph(graph_event)
                 except Exception as e:
@@ -1008,8 +1007,7 @@ class FT8Clicker(QMainWindow):
             
             # Decrement CQ counter if CQ button was clicked
             if button_type == 'tx6' and self.cqs_remaining > 0:
-                self.cqs_remaining -= 1
-                self.cqs_arc.setValue(self.cqs_remaining, self.settings['cqs_remaining'])
+                self.consume_cq_try("Auto")
             
             # Reset CQ counter if TX enabled (QSO established)
             if button_type == 'enable_tx':
@@ -1020,6 +1018,17 @@ class FT8Clicker(QMainWindow):
         except Exception as e:
             self.log(f"Error clicking {button_type}: {e}")
             return False
+
+    def consume_cq_try(self, source=""):
+        if self.cqs_remaining <= 0:
+            return
+        self.cqs_remaining -= 1
+        self.cqs_arc.setValue(self.cqs_remaining, self.settings['cqs_remaining'])
+        if self.cqs_remaining <= 0:
+            source_prefix = f"{source} " if source else ""
+            self.log(f"{source_prefix}Tries till band change reached 0; changing band.")
+            self.change_band()
+            self.band_cycle_counter = 0
 
     def select_band(self, band):
         if self.learning:
@@ -1101,10 +1110,6 @@ class FT8Clicker(QMainWindow):
                 if current_state == 'inactive':  # Only click if inactive to enable
                     self.click_learned_button('enable_tx', "Auto-clicked Enable Tx", 'enable_tx')
                     self.cq_remaining = self.settings['cq_time']
-                    self.band_cycle_counter += 1
-                    if self.cqs_remaining > 0 and self.band_cycle_counter >= self.cqs_remaining:
-                        self.change_band()
-                        self.band_cycle_counter = 0
                     self.enable_tx_cooldown = True
                     self.cooldown_timer.start(2000)  # 2 second cooldown
             except Exception as e:
@@ -1125,9 +1130,6 @@ class FT8Clicker(QMainWindow):
                             self.click_learned_button('tx6', "Auto-clicked CQ", 'cq')
                             self.cq_remaining = self.settings['cq_time']
                             self.cq_arc.setValue(self.cq_remaining, self.settings['cq_time'])
-                            if self.cqs_remaining > 0:
-                                self.cqs_remaining -= 1
-                                self.cqs_arc.setValue(self.cqs_remaining, self.settings['cqs_remaining'])
                     except Exception as e:
                         self.log(f"Error in auto_cq: {e}")
 
@@ -1144,8 +1146,14 @@ class FT8Clicker(QMainWindow):
         if not self.band_order:
             self.log("No learned bands available for cycling")
             return
-        self.current_band_index = (self.current_band_index + 1) % len(self.band_order)
-        new_band = self.band_order[self.current_band_index]
+
+        if self.current_band in self.band_order:
+            current_index = self.band_order.index(self.current_band)
+        else:
+            current_index = self.current_band_index if 0 <= self.current_band_index < len(self.band_order) else -1
+
+        next_index = (current_index + 1) % len(self.band_order)
+        new_band = self.band_order[next_index]
         if new_band in self.learned_buttons:
             pos = self.learned_buttons[new_band]['pos']
             try:
@@ -1154,9 +1162,17 @@ class FT8Clicker(QMainWindow):
                 current_state = states.get(str(current_color), 'unknown')
                 if current_state != 'active':  # Only click if not already active
                     if self.click_learned_button(new_band, f"Changed to band {new_band}", 'band_change'):
+                        self.current_band_index = next_index
                         self.current_band = new_band
                         self.cqs_remaining = self.settings['cqs_remaining']
                         self.cqs_arc.setValue(self.cqs_remaining, self.settings['cqs_remaining'])
+                else:
+                    # If the target is already active, treat it as current and still reset tries.
+                    self.current_band_index = next_index
+                    self.current_band = new_band
+                    self.log(f"Band {new_band} already active; advancing round-robin target.")
+                    self.cqs_remaining = self.settings['cqs_remaining']
+                    self.cqs_arc.setValue(self.cqs_remaining, self.settings['cqs_remaining'])
             except Exception as e:
                 self.log(f"Error in change_band: {e}")
 
