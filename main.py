@@ -618,11 +618,30 @@ class FT8Clicker(QMainWindow):
                 data['states'] = {str(data['color']): 'inactive'}
                 del data['color']
         self.click_interval = self.settings.get('click_interval', 0.5)
-        self.cq_remaining = self.settings.get('cq_time', 90)
-        self.app_remaining = self.settings.get('app_time', 30*60)
-        self.cqs_remaining = self.settings.get('cqs_remaining', 10)
+        self.refresh_timer_settings_cache()
+        self.cq_remaining = self.persistent_cq_time
+        self.app_remaining = self.persistent_app_time
+        self.cqs_remaining = self.persistent_cqs_remaining
+
+    def refresh_timer_settings_cache(self):
+        # Keep persistent timer defaults separate from runtime countdown values.
+        self.persistent_cq_time = int(self.settings.get('cq_time', 90))
+        self.persistent_cqs_remaining = int(self.settings.get('cqs_remaining', 10))
+        self.persistent_app_time = int(self.settings.get('app_time', 30 * 60))
+
+    def timer_setting_value(self, timer_name):
+        mapping = {
+            'cq': self.persistent_cq_time,
+            'cqs': self.persistent_cqs_remaining,
+            'app': self.persistent_app_time,
+        }
+        return int(mapping.get(timer_name, 0))
 
     def save_settings(self):
+        # Persist only configured defaults; runtime +/- controls do not write these.
+        self.settings['cq_time'] = int(self.persistent_cq_time)
+        self.settings['cqs_remaining'] = int(self.persistent_cqs_remaining)
+        self.settings['app_time'] = int(self.persistent_app_time)
         self.settings['learned_buttons'] = self.learned_buttons
         with open(self.settings_file, 'w') as f:
             json.dump(self.settings, f, indent=4)
@@ -1011,8 +1030,8 @@ class FT8Clicker(QMainWindow):
             
             # Reset CQ counter if TX enabled (QSO established)
             if button_type == 'enable_tx':
-                self.cqs_remaining = self.settings['cqs_remaining']
-                self.cqs_arc.setValue(self.cqs_remaining, self.settings['cqs_remaining'])
+                self.cqs_remaining = self.timer_setting_value('cqs')
+                self.cqs_arc.setValue(self.cqs_remaining, self.timer_setting_value('cqs'))
             
             return True
         except Exception as e:
@@ -1023,7 +1042,7 @@ class FT8Clicker(QMainWindow):
         if self.cqs_remaining <= 0:
             return
         self.cqs_remaining -= 1
-        self.cqs_arc.setValue(self.cqs_remaining, self.settings['cqs_remaining'])
+        self.cqs_arc.setValue(self.cqs_remaining, self.timer_setting_value('cqs'))
         if self.cqs_remaining <= 0:
             source_prefix = f"{source} " if source else ""
             self.log(f"{source_prefix}Tries till band change reached 0; changing band.")
@@ -1056,14 +1075,14 @@ class FT8Clicker(QMainWindow):
             self.log("Started clicking")
             self.start_btn.setText("RUNNING")
             self.start_btn.setStyleSheet("background-color: green; color: white;")
-            self.cq_remaining = self.settings['cq_time']
-            self.app_remaining = self.settings['app_time']
-            self.cqs_remaining = self.settings['cqs_remaining']
+            self.cq_remaining = self.timer_setting_value('cq')
+            self.app_remaining = self.timer_setting_value('app')
+            self.cqs_remaining = self.timer_setting_value('cqs')
             self.current_band = self.settings.get('current_band', '40m')
             # Update arc progress indicators
-            self.cq_arc.setValue(self.cq_remaining, self.settings['cq_time'])
-            self.cqs_arc.setValue(self.cqs_remaining, self.settings['cqs_remaining'])
-            self.app_arc.setValue(self.app_remaining, self.settings['app_time'])
+            self.cq_arc.setValue(self.cq_remaining, self.timer_setting_value('cq'))
+            self.cqs_arc.setValue(self.cqs_remaining, self.timer_setting_value('cqs'))
+            self.app_arc.setValue(self.app_remaining, self.timer_setting_value('app'))
             self.cq_timer.start(1000)
             self.app_timer.start(1000)
             self.color_timer.start(1000)
@@ -1109,7 +1128,7 @@ class FT8Clicker(QMainWindow):
                 current_state = states.get(str(current_color), 'unknown')
                 if current_state == 'inactive':  # Only click if inactive to enable
                     self.click_learned_button('enable_tx', "Auto-clicked Enable Tx", 'enable_tx')
-                    self.cq_remaining = self.settings['cq_time']
+                    self.cq_remaining = self.timer_setting_value('cq')
                     self.enable_tx_cooldown = True
                     self.cooldown_timer.start(2000)  # 2 second cooldown
             except Exception as e:
@@ -1118,7 +1137,7 @@ class FT8Clicker(QMainWindow):
     def auto_cq(self):
         if self.running:
             self.cq_remaining -= 1
-            self.cq_arc.setValue(self.cq_remaining, self.settings['cq_time'])
+            self.cq_arc.setValue(self.cq_remaining, self.timer_setting_value('cq'))
             if self.cq_remaining <= 0:
                 if 'tx6' in self.learned_buttons:
                     pos = self.learned_buttons['tx6']['pos']
@@ -1128,15 +1147,15 @@ class FT8Clicker(QMainWindow):
                         current_state = states.get(str(current_color), 'unknown')
                         if current_state == 'inactive':  # Only click if inactive to send CQ
                             self.click_learned_button('tx6', "Auto-clicked CQ", 'cq')
-                            self.cq_remaining = self.settings['cq_time']
-                            self.cq_arc.setValue(self.cq_remaining, self.settings['cq_time'])
+                            self.cq_remaining = self.timer_setting_value('cq')
+                            self.cq_arc.setValue(self.cq_remaining, self.timer_setting_value('cq'))
                     except Exception as e:
                         self.log(f"Error in auto_cq: {e}")
 
     def auto_stop(self):
         if self.running:
             self.app_remaining -= 1
-            self.app_arc.setValue(self.app_remaining, self.settings['app_time'])
+            self.app_arc.setValue(self.app_remaining, self.timer_setting_value('app'))
             if self.app_remaining <= 0:
                 self.stop_clicking()
                 self.log("App stopped due to time limit")
@@ -1164,15 +1183,15 @@ class FT8Clicker(QMainWindow):
                     if self.click_learned_button(new_band, f"Changed to band {new_band}", 'band_change'):
                         self.current_band_index = next_index
                         self.current_band = new_band
-                        self.cqs_remaining = self.settings['cqs_remaining']
-                        self.cqs_arc.setValue(self.cqs_remaining, self.settings['cqs_remaining'])
+                        self.cqs_remaining = self.timer_setting_value('cqs')
+                        self.cqs_arc.setValue(self.cqs_remaining, self.timer_setting_value('cqs'))
                 else:
                     # If the target is already active, treat it as current and still reset tries.
                     self.current_band_index = next_index
                     self.current_band = new_band
                     self.log(f"Band {new_band} already active; advancing round-robin target.")
-                    self.cqs_remaining = self.settings['cqs_remaining']
-                    self.cqs_arc.setValue(self.cqs_remaining, self.settings['cqs_remaining'])
+                    self.cqs_remaining = self.timer_setting_value('cqs')
+                    self.cqs_arc.setValue(self.cqs_remaining, self.timer_setting_value('cqs'))
             except Exception as e:
                 self.log(f"Error in change_band: {e}")
 
@@ -1330,7 +1349,7 @@ class FT8Clicker(QMainWindow):
         cq_layout = QHBoxLayout()
         cq_layout.addWidget(QLabel("Stay on Callsign (s):"))
         self.cq_spin = QSpinBox()
-        self.cq_spin.setValue(self.settings['cq_time'])
+        self.cq_spin.setValue(self.persistent_cq_time)
         self.cq_spin.setRange(60, 3000)
         self.cq_spin.setSingleStep(20)
         cq_layout.addWidget(self.cq_spin)
@@ -1340,7 +1359,7 @@ class FT8Clicker(QMainWindow):
         cqs_layout = QHBoxLayout()
         cqs_layout.addWidget(QLabel("Tries till band change:"))
         self.cqs_spin = QSpinBox()
-        self.cqs_spin.setValue(self.settings['cqs_remaining'])
+        self.cqs_spin.setValue(self.persistent_cqs_remaining)
         self.cqs_spin.setRange(0, 100)
         cqs_layout.addWidget(self.cqs_spin)
         layout.addLayout(cqs_layout)
@@ -1349,7 +1368,7 @@ class FT8Clicker(QMainWindow):
         app_layout = QHBoxLayout()
         app_layout.addWidget(QLabel("Until Auto Stop (min):"))
         self.app_spin = QSpinBox()
-        self.app_spin.setValue(self.settings['app_time'] // 60)
+        self.app_spin.setValue(self.persistent_app_time // 60)
         self.app_spin.setRange(5, 240)
         app_layout.addWidget(self.app_spin)
         layout.addLayout(app_layout)
@@ -1428,6 +1447,7 @@ class FT8Clicker(QMainWindow):
         self.settings['cq_time'] = self.cq_spin.value()
         self.settings['cqs_remaining'] = self.cqs_spin.value()
         self.settings['app_time'] = self.app_spin.value() * 60
+        self.refresh_timer_settings_cache()
         self.visible_bands = [b for b in self.all_bands if self.band_checks[b].isChecked()]
         self.settings['visible_bands'] = self.visible_bands
         self.band_order = [b for b in self.all_bands if b in self.learned_buttons and b in self.visible_bands]
@@ -1479,9 +1499,9 @@ class FT8Clicker(QMainWindow):
         info = self.timer_control_info(timer_name)
         if not info:
             return
-        value_attr, max_setting_key, arc_widget = info
+        value_attr, _max_setting_key, arc_widget = info
         current = int(getattr(self, value_attr, 0))
-        maximum = int(self.settings.get(max_setting_key, 0))
+        maximum = self.timer_setting_value(timer_name)
         arc_widget.setValue(max(0, current), max(0, maximum))
 
     def adjust_timer_value(self, timer_name, delta):
@@ -1514,8 +1534,8 @@ class FT8Clicker(QMainWindow):
         info = self.timer_control_info(timer_name)
         if not info:
             return
-        value_attr, max_setting_key, _arc_widget = info
-        setattr(self, value_attr, int(self.settings.get(max_setting_key, 0)))
+        value_attr, _max_setting_key, _arc_widget = info
+        setattr(self, value_attr, self.timer_setting_value(timer_name))
         self.refresh_timer_arc(timer_name)
         self.log(f"Timer {self.timer_display_name(timer_name)}: reset -> {getattr(self, value_attr)}")
 
