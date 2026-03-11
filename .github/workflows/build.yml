@@ -1,49 +1,14 @@
-name: Build Executables
+build-mac:
+  runs-on: macos-latest
 
-on:
-  push:
-    tags:
-      - 'v*'   # Only run when pushing version tags like v0.8
-
-permissions:
-  contents: write
-
-jobs:
-  build-windows:
-    runs-on: windows-latest
-    steps:
-    - uses: actions/checkout@v4
+  steps:
+    - name: Check out repository
+      uses: actions/checkout@v4
 
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: '3.11'
-
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install pyinstaller
-
-    - name: Build Windows executable
-      run: |
-        pyinstaller --onefile --windowed --name FT8Clicker main.py
-
-    - name: Upload Windows executable
-      uses: actions/upload-artifact@v4
-      with:
-        name: FT8Clicker-Windows
-        path: dist/FT8Clicker/FT8Clicker.exe
-
-  build-mac:
-    runs-on: macos-latest
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
+        python-version: "3.11"
 
     - name: Install dependencies
       run: |
@@ -53,58 +18,34 @@ jobs:
 
     - name: Build macOS app
       run: |
-        pyinstaller --onedir --windowed --name FT8Clicker main.py
+        pyinstaller FT8Clicker.spec
+        echo "Build output:"
+        ls -R dist
 
     - name: Install create-dmg
       run: brew install create-dmg
 
     - name: Create DMG
       run: |
+        # Adjust this path if your .app ends up somewhere else
+        APP_PATH="dist/FT8Clicker.app"
+
+        if [ ! -d "$APP_PATH" ]; then
+          echo "ERROR: App not found at $APP_PATH"
+          exit 1
+        fi
+
         create-dmg \
           --volname "FT8Clicker" \
           --window-pos 200 120 \
-          --window-size 800 400 \
+          --window-size 600 400 \
           --icon-size 100 \
-          --icon "FT8Clicker.app" 200 190 \
-          --hide-extension "FT8Clicker.app" \
-          --app-drop-link 600 185 \
+          --app-drop-link 400 200 \
           "FT8Clicker.dmg" \
-          "dist/FT8Clicker/FT8Clicker.app"
+          "$APP_PATH"
 
     - name: Upload macOS DMG
       uses: actions/upload-artifact@v4
       with:
         name: FT8Clicker-macOS
         path: FT8Clicker.dmg
-
-  release:
-    needs: [build-windows, build-mac]
-    runs-on: ubuntu-latest
-
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Download Windows artifact
-      uses: actions/download-artifact@v4
-      with:
-        name: FT8Clicker-Windows
-
-    - name: Download macOS artifact
-      uses: actions/download-artifact@v4
-      with:
-        name: FT8Clicker-macOS
-
-    - name: Move artifacts to root
-      run: |
-        mv FT8Clicker-Windows/FT8Clicker.exe .
-        mv FT8Clicker-macOS/FT8Clicker.dmg .
-
-    - name: Create Release
-      run: |
-        TAG_NAME=${GITHUB_REF#refs/tags/}
-        gh release create "$TAG_NAME" \
-          --title "FT8Clicker $TAG_NAME" \
-          --notes "Automated release of FT8Clicker $TAG_NAME" \
-          FT8Clicker.exe FT8Clicker.dmg
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
