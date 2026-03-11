@@ -1,7 +1,13 @@
 import sys
+import signal
+import os
 from collections import Counter
 import mss
 import math
+
+if sys.platform == "win32":
+    # Suppress non-fatal Qt DPI awareness warning emitted on some Windows setups.
+    os.environ.setdefault("QT_LOGGING_RULES", "qt.qpa.window=false")
 
 LOG_FN = None
 CAPTURE_METHOD_LOGGED = set()
@@ -220,15 +226,12 @@ def get_pixel_color(x, y):
             return most_common, colors
         return (128, 128, 128), []
 from PyQt6.QtCore import *
+from PyQt6.QtCore import pyqtProperty
 from PyQt6.QtGui import *
 from PyQt6.QtWidgets import *
 import pyautogui
 import json
-import os
 from datetime import datetime
-import matplotlib.pyplot as plt
-from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.figure import Figure
 
 class DelayedTooltipButton(QPushButton):
     def __init__(self, text, tooltip_text, parent=None):
@@ -269,8 +272,8 @@ class FuelGauge(QWidget):
         center = rect.center()
         
         # Draw gauge background
-        painter.setPen(QPen(QColor(Qt.GlobalColor.black), 2))
-        painter.setBrush(QBrush(QColor(240, 240, 240)))
+        painter.setPen(QPen(QColor(160, 170, 180), 2))
+        painter.setBrush(QBrush(QColor(45, 48, 55)))
         painter.drawEllipse(center, 80, 80)
         
         # Color zones
@@ -294,7 +297,7 @@ class FuelGauge(QWidget):
             painter.drawLine(center, end_point)
         
         # Draw text
-        painter.setPen(QColor(Qt.GlobalColor.black))
+        painter.setPen(QColor(235, 235, 235))
         painter.setFont(QFont("Arial", 10))
         text = f"{self.value}/{self.maximum}"
         painter.drawText(rect, Qt.AlignmentFlag.AlignBottom | Qt.AlignmentFlag.AlignHCenter, text)
@@ -320,8 +323,8 @@ class AutoScalingBar(QWidget):
         bar_rect = rect.adjusted(margin, margin, -margin, -margin)
         
         # Background
-        painter.setPen(QPen(QColor(Qt.GlobalColor.black), 1))
-        painter.setBrush(QBrush(QColor(200, 200, 200)))
+        painter.setPen(QPen(QColor(120, 130, 140), 1))
+        painter.setBrush(QBrush(QColor(40, 44, 52)))
         painter.drawRect(bar_rect)
         
         # Fill
@@ -346,7 +349,7 @@ class AutoScalingBar(QWidget):
             painter.drawRect(fill_rect)
         
         # Text
-        painter.setPen(QColor(Qt.GlobalColor.black))
+        painter.setPen(QColor(235, 235, 235))
         painter.setFont(QFont("Arial", 12, QFont.Weight.Bold))
         text = f"{self.current}/{self.maximum}"
         painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, text)
@@ -385,7 +388,7 @@ class CircularProgress(QWidget):
         radius = min(rect.width(), rect.height()) // 2 - 10
         
         # Background circle
-        painter.setPen(QPen(QColor(200, 200, 200), 10))
+        painter.setPen(QPen(QColor(90, 95, 105), 10))
         painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.drawEllipse(center, radius, radius)
         
@@ -399,7 +402,7 @@ class CircularProgress(QWidget):
                           radius*2, radius*2, start_angle, int(span_angle * percentage))
         
         # Text
-        painter.setPen(QColor(Qt.GlobalColor.black))
+        painter.setPen(QColor(235, 235, 235))
         painter.setFont(QFont("Arial", 14, QFont.Weight.Bold))
         text = f"{self.current}"
         painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, text)
@@ -422,8 +425,8 @@ class ArcProgress(QWidget):
         self.timer = QTimer(self)
         self.timer.setSingleShot(True)
         self.timer.timeout.connect(self.show_tooltip)
-        self.setMinimumSize(120, 120)
-        self.setMaximumSize(120, 120)
+        self.setMinimumSize(132, 120)
+        self.setMaximumSize(132, 120)
 
     def enterEvent(self, event):
         self.timer.start(3000)  # 3 seconds
@@ -465,7 +468,7 @@ class ArcProgress(QWidget):
         
         # Progress arc - shrinks counter-clockwise from the start
         if self.maximum > 0:
-            percentage = self.current / self.maximum
+            percentage = max(0.0, min(1.0, self.current / self.maximum))
             # Calculate start angle offset to shrink from the beginning
             start_offset = int(total_span * (1 - percentage))
             current_start_angle = start_angle + start_offset
@@ -476,15 +479,10 @@ class ArcProgress(QWidget):
             painter.drawArc(center_x-radius, center_y-radius, 
                           radius*2, radius*2, current_start_angle, progress_span)
         
-        # Label text immediately above the value
-        painter.setPen(QColor(Qt.GlobalColor.black))
-        painter.setFont(QFont("Arial", 9))
-        label_rect = QRect(rect.left(), rect.top() + 25, rect.width(), 20)
-        painter.drawText(label_rect, Qt.AlignmentFlag.AlignCenter, self.label)
-        
         # Value text in center
+        painter.setPen(QColor(235, 235, 235))
         painter.setFont(QFont("Arial", 16, QFont.Weight.Bold))
-        value_rect = QRect(rect.left(), rect.top() + 45, rect.width(), 30)
+        value_rect = QRect(rect.left(), rect.top() + 35, rect.width(), 30)
         if self.maximum >= 60:
             # Display as minutes:seconds
             mins = int(self.current // 60)
@@ -493,6 +491,11 @@ class ArcProgress(QWidget):
         else:
             text = f"{int(self.current)}"
         painter.drawText(value_rect, Qt.AlignmentFlag.AlignCenter, text)
+
+        # Label text below the value
+        painter.setFont(QFont("Arial", 9))
+        label_rect = QRect(rect.left(), rect.top() + 72, rect.width(), 20)
+        painter.drawText(label_rect, Qt.AlignmentFlag.AlignCenter, self.label)
 
     def getColor(self, percentage):
         # Green at 100%, gradually turn to red when <10% remaining
@@ -510,21 +513,30 @@ class ArcProgress(QWidget):
             return QColor(255, 0, 0)  # Red
 
 class FT8Clicker(QMainWindow):
-    def __init__(self):
+    def __init__(self, startup_progress=None):
         super().__init__()
+        self.startup_progress = startup_progress
+        self.click_history = []
+        self.current_bar_start = None  # For real-time growing bar
+        self.graph_label_font = 6
+        self.graph_tick_font = 5
+        self.graph_min_height = 55
+        self.log_expanded_min_height = 150
+        self.footer_min_height = 20
+        self.report_startup_progress(0, "Loading settings...")
         self.settings_file = 'settings.json'
         self.load_settings()
+        self.report_startup_progress(1, "Building interface...")
         self.init_ui()
+        self.report_startup_progress(2, "Checking permissions...")
         self.check_screen_recording_permission()
         set_log_fn(self.log)
+        self.report_startup_progress(3, "Preparing timers...")
         self.setup_timers()
         self.color_timer.start(1000)
         self.learning = False
         self.current_band = '40m'
-        self.click_history = []
-        self.current_bar_start = None  # For real-time growing bar
         self.running = False
-        self.paused = False
         self.all_bands = ['160m', '80m', '40m', '30m', '20m', '17m', '15m', '12m', '10m', '6m', '2m', '70cm']
         self.band_order = [b for b in self.all_bands if b in self.learned_buttons and b in self.visible_bands]
         self.current_band_index = self.band_order.index(self.current_band) if self.current_band in self.band_order else 0
@@ -541,6 +553,43 @@ class FT8Clicker(QMainWindow):
         self.display_names = {'enable_tx': 'Enable Tx', 'tx6': 'Tx 6'}
         self.last_button_states = {}
         self.flash_restore_styles = {}
+        self.report_startup_progress(4, "Finalizing...")
+
+    def report_startup_progress(self, step, message):
+        if callable(self.startup_progress):
+            self.startup_progress(step, message)
+
+    def apply_dark_theme(self):
+        app = QApplication.instance()
+        if not app:
+            return
+        app.setStyle("Fusion")
+        palette = QPalette()
+        palette.setColor(QPalette.ColorRole.Window, QColor(0, 0, 0))
+        palette.setColor(QPalette.ColorRole.WindowText, QColor(235, 235, 235))
+        palette.setColor(QPalette.ColorRole.Base, QColor(8, 8, 8))
+        palette.setColor(QPalette.ColorRole.AlternateBase, QColor(18, 18, 18))
+        palette.setColor(QPalette.ColorRole.ToolTipBase, QColor(24, 24, 24))
+        palette.setColor(QPalette.ColorRole.ToolTipText, QColor(240, 246, 252))
+        palette.setColor(QPalette.ColorRole.Text, QColor(235, 235, 235))
+        palette.setColor(QPalette.ColorRole.Button, QColor(28, 28, 28))
+        palette.setColor(QPalette.ColorRole.ButtonText, QColor(240, 246, 252))
+        palette.setColor(QPalette.ColorRole.BrightText, QColor(255, 255, 255))
+        palette.setColor(QPalette.ColorRole.Highlight, QColor(60, 140, 255))
+        palette.setColor(QPalette.ColorRole.HighlightedText, QColor(255, 255, 255))
+        app.setPalette(palette)
+
+        self.setStyleSheet(
+            "QMainWindow, QWidget { background-color: #000000; color: #f2f2f2; }"
+            "QGroupBox { border: 1px solid #333333; border-radius: 6px; margin-top: 10px; padding-top: 8px; background-color: #101010; }"
+            "QGroupBox::title { subcontrol-origin: margin; left: 10px; padding: 0 4px; color: #d9d9d9; font-weight: bold; font-size: 14pt; }"
+            "QPushButton { background-color: #1f1f1f; color: #f5f5f5; border: 1px solid #4a4a4a; border-radius: 5px; padding: 6px; }"
+            "QPushButton:hover { background-color: #2a2a2a; }"
+            "QPushButton:pressed { background-color: #363636; }"
+            "QTextEdit { background-color: #080808; color: #e0e0e0; border: 1px solid #333333; }"
+            "QLineEdit, QSpinBox, QDoubleSpinBox, QCheckBox, QLabel { color: #f0f0f0; }"
+            "QToolTip { background-color: #161616; color: #ffffff; border: 1px solid #666666; }"
+        )
 
     def load_settings(self):
         if os.path.exists(self.settings_file):
@@ -553,7 +602,11 @@ class FT8Clicker(QMainWindow):
                 'cq_time': 200,
                 'cqs_remaining': 3,
                 'app_time': 60*60,
-                'learned_buttons': {}
+                'learned_buttons': {},
+                'window_geometry': {'x': 100, 'y': 100, 'width': 1200, 'height': 800},
+                    'log_expanded': True,
+                    'current_band': '40m',
+                    'window_maximized': False
             }
         self.visible_bands = self.settings.get('visible_bands', ['40m', '20m', '17m', '15m', '12m', '10m'])
         self.learned_buttons = self.settings.get('learned_buttons', {})
@@ -575,131 +628,192 @@ class FT8Clicker(QMainWindow):
             json.dump(self.settings, f, indent=4)
 
     def init_ui(self):
-        self.setWindowTitle("FT8Clicker v0.7")
-        self.setGeometry(100, 100, 1200, 800)
+        self.apply_dark_theme()
+        self.setWindowTitle("FT8Clicker v0.8")
+        # Base minimum; effective minimum height is updated dynamically after UI is built.
+        self.setMinimumSize(600, 420)
+        self.restore_window_geometry()
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         main_layout = QHBoxLayout(central_widget)
 
-        # Left panel
-        left_panel = QWidget()
-        left_layout = QVBoxLayout(left_panel)
-
-        # Button List
-        button_group = QGroupBox("Button List")
-        button_group.setStyleSheet("QGroupBox::title { font-weight: bold; font-size: 14pt; } QGroupBox { background-color: #f0f0f0; }")
-        self.button_layout = QVBoxLayout(button_group)
-        self.enable_tx_btn = DelayedTooltipButton("Enable Tx", "Click to manually enable TX or learn its position. Enables transmission in FT8 software.")
-        self.enable_tx_btn.clicked.connect(lambda: self.manual_click('enable_tx'))
-        self.enable_tx_btn.setFont(QFont("Arial", 14, QFont.Weight.Bold))
-        self.button_layout.addWidget(self.enable_tx_btn)
-        self.tx6_btn = DelayedTooltipButton("Tx 6 (CQ)", "Click to manually send CQ call or learn its position. Sends a CQ signal in FT8 software.")
-        self.tx6_btn.clicked.connect(lambda: self.manual_click('tx6'))
-        self.tx6_btn.setFont(QFont("Arial", 14, QFont.Weight.Bold))
-        self.button_layout.addWidget(self.tx6_btn)
-        self.band_buttons = {}
-        for band in self.visible_bands:
-            btn = DelayedTooltipButton(band, f"Click to select {band} band or learn its position. Changes to {band} frequency in FT8 software.")
-            btn.clicked.connect(lambda checked, b=band: self.select_band(b))
-            btn.setFont(QFont("Arial", 14, QFont.Weight.Bold))
-            self.button_layout.addWidget(btn)
-            self.band_buttons[band] = btn
-        left_layout.addWidget(button_group)
-
-        # Learn and Locate
-        learn_locate_group = QGroupBox("Learn & Locate")
-        learn_locate_group.setStyleSheet("QGroupBox::title { font-weight: bold; font-size: 14pt; } QGroupBox { background-color: #f0f0f0; }")
-        learn_layout = QHBoxLayout(learn_locate_group)
-        self.learn_btn = DelayedTooltipButton("LEARN", "Enter learning mode to capture button positions. Click a button, move mouse to FT8 software button, press L.")
-        self.learn_btn.clicked.connect(self.learn_button)
-        learn_layout.addWidget(self.learn_btn)
-        self.locate_btn = DelayedTooltipButton("LOCATE", "Enter locate mode to move mouse to learned button positions. Click a button to move cursor there.")
-        self.locate_btn.clicked.connect(self.locate_button)
-        learn_layout.addWidget(self.locate_btn)
-        left_layout.addWidget(learn_locate_group)
-
-        # Main buttons
-        main_btn_group = QGroupBox("Controls")
-        main_btn_group.setStyleSheet("QGroupBox::title { font-weight: bold; font-size: 14pt; } QGroupBox { background-color: #f0f0f0; }")
-        main_btn_layout = QGridLayout(main_btn_group)
-        self.start_btn = DelayedTooltipButton("STOPPED", "Start or stop the automation. Red=stopped, Green=running.")
-        self.start_btn.clicked.connect(self.toggle_start_stop)
-        self.start_btn.setStyleSheet("background-color: red; color: white;")
-        main_btn_layout.addWidget(self.start_btn, 0, 0)
-        self.pause_btn = DelayedTooltipButton("PAUSE", "Pause or resume automation when running.")
-        self.pause_btn.clicked.connect(self.pause_clicking)
-        main_btn_layout.addWidget(self.pause_btn, 0, 1)
-        self.settings_btn = DelayedTooltipButton("Settings", "Open settings dialog to configure intervals, timers, and visible bands.")
-        self.settings_btn.clicked.connect(self.open_settings)
-        main_btn_layout.addWidget(self.settings_btn, 1, 0)
-        self.help_btn = DelayedTooltipButton("Help", "Open help dialog with usage instructions and troubleshooting.")
-        self.help_btn.clicked.connect(self.open_help)
-        main_btn_layout.addWidget(self.help_btn, 1, 1)
-        left_layout.addWidget(main_btn_group)
-
-        main_layout.addWidget(left_panel)
-
         # Right panel
         right_panel = QWidget()
         right_layout = QVBoxLayout(right_panel)
+        right_layout.setContentsMargins(6, 6, 6, 6)
+        right_layout.setSpacing(8)
+        right_layout.setSizeConstraint(QLayout.SizeConstraint.SetDefaultConstraint)
+
+        section_label_font = QFont("Arial", 10, QFont.Weight.Normal)
 
         # Status
         status_group = QGroupBox("Status")
-        status_group.setStyleSheet("QGroupBox::title { font-weight: bold; font-size: 14pt; } QGroupBox { background-color: #f0f0f0; }")
+        status_group.setStyleSheet("QGroupBox::title { font-weight: bold; font-size: 12pt; }")
+        status_group.setFixedHeight(258)
+        status_group.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.status_group = status_group
         status_layout = QVBoxLayout(status_group)
-        self.status_label = QLabel("Status: Stopped")
+        status_layout.setContentsMargins(6, 8, 6, 0)
+
+        # Bands row
+        bands_label = QLabel("Bands")
+        bands_label.setFont(section_label_font)
+        status_layout.addWidget(bands_label)
+
+        self.band_row_layout = QHBoxLayout()
+        self.band_row_layout.setSpacing(6)
+        self.band_buttons = {}
+        for band in self.visible_bands:
+            btn = DelayedTooltipButton(band, f"Click to select {band} band or learn its position. Changes to {band} frequency in FT8 software.")
+            btn.clicked.connect(lambda checked, b=band: self.manual_click(b))
+            btn.setFont(QFont("Arial", 10, QFont.Weight.Bold))
+            btn.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+            self.band_row_layout.addWidget(btn, 1)
+            self.band_buttons[band] = btn
+        status_layout.addLayout(self.band_row_layout)
+
+        # Controls row
+        controls_label = QLabel("Controls")
+        controls_label.setFont(section_label_font)
+        status_layout.addWidget(controls_label)
+
+        self.controls_row_layout = QHBoxLayout()
+        self.controls_row_layout.setSpacing(6)
+        control_font = QFont("Arial", 9, QFont.Weight.Bold)
+
+        self.start_btn = DelayedTooltipButton("STOPPED", "Start or stop the automation. Red=stopped, Green=running.")
+        self.start_btn.clicked.connect(self.toggle_start_stop)
+        self.start_btn.setFont(control_font)
+        self.start_btn.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.start_btn.setStyleSheet("background-color: red; color: white;")
+        self.controls_row_layout.addWidget(self.start_btn, 1)
+
+        self.enable_tx_btn = DelayedTooltipButton("ENABLE TX", "Click to manually enable TX or learn its position. Enables transmission in FT8 software.")
+        self.enable_tx_btn.clicked.connect(lambda: self.manual_click('enable_tx'))
+        self.enable_tx_btn.setFont(control_font)
+        self.enable_tx_btn.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.controls_row_layout.addWidget(self.enable_tx_btn, 1)
+
+        self.tx6_btn = DelayedTooltipButton("Tx 6 (CQ)", "Click to manually send CQ call or learn its position. Sends a CQ signal in FT8 software.")
+        self.tx6_btn.clicked.connect(lambda: self.manual_click('tx6'))
+        self.tx6_btn.setFont(control_font)
+        self.tx6_btn.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.controls_row_layout.addWidget(self.tx6_btn, 1)
+
+        self.learn_btn = DelayedTooltipButton("LEARN", "Enter learning mode to capture button positions. Click a button, move mouse to FT8 software button, press L.")
+        self.learn_btn.clicked.connect(self.learn_button)
+        self.learn_btn.setFont(control_font)
+        self.learn_btn.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.controls_row_layout.addWidget(self.learn_btn, 1)
+
+        self.locate_btn = DelayedTooltipButton("LOCATE", "Enter locate mode to move mouse to learned button positions. Click a button to move cursor there.")
+        self.locate_btn.clicked.connect(self.locate_button)
+        self.locate_btn.setFont(control_font)
+        self.locate_btn.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.controls_row_layout.addWidget(self.locate_btn, 1)
+
+        self.settings_btn = DelayedTooltipButton("SETTINGS", "Open settings dialog to configure intervals, timers, and visible bands.")
+        self.settings_btn.clicked.connect(self.open_settings)
+        self.settings_btn.setFont(control_font)
+        self.settings_btn.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.controls_row_layout.addWidget(self.settings_btn, 1)
+
+        self.help_btn = DelayedTooltipButton("HELP", "Open help dialog with usage instructions and troubleshooting.")
+        self.help_btn.clicked.connect(self.open_help)
+        self.help_btn.setFont(control_font)
+        self.help_btn.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.controls_row_layout.addWidget(self.help_btn, 1)
+        status_layout.addLayout(self.controls_row_layout)
+
+        # Countdown/status line
+        self.status_label = QLabel("Countdown Timers")
+        self.status_label.setFont(section_label_font)
         status_layout.addWidget(self.status_label)
         
-        # Arc Progress Indicators
+        # Arc progress below countdown line
         arcs_layout = QHBoxLayout()
         arcs_layout.setSpacing(10)
         
-        self.cq_arc = ArcProgress("CQ Time", "Shows remaining time until automatic CQ. Resets when TX is enabled. Green=plenty, Yellow=warning, Red=critical.")
-        self.cqs_arc = ArcProgress("Consecutive CQs Left", "Shows remaining consecutive CQ calls until automatic band change. Decrements on each CQ (manual or auto). Resets when a QSO is established.")
-        self.app_arc = ArcProgress("App Time", "Shows remaining time until automatic app stop. Counts down total runtime.")
+        self.cq_arc = ArcProgress("Stay on Callsign", "Shows remaining time until automatic CQ. Resets when TX is enabled. Green=plenty, Yellow=warning, Red=critical.")
+        self.cqs_arc = ArcProgress("Tries till band change", "Shows remaining consecutive CQ calls until automatic band change. Decrements on each CQ (manual or auto). Resets when a QSO is established.")
+        self.app_arc = ArcProgress("Until Auto Stop", "Shows remaining time until automatic app stop. Counts down total runtime.")
         
-        arcs_layout.addWidget(self.cq_arc)
-        arcs_layout.addWidget(self.cqs_arc)
-        arcs_layout.addWidget(self.app_arc)
+        arcs_layout.addWidget(self.create_arc_panel(self.cq_arc, 'cq'))
+        arcs_layout.addWidget(self.create_arc_panel(self.cqs_arc, 'cqs'))
+        arcs_layout.addWidget(self.create_arc_panel(self.app_arc, 'app'))
+
+        # Show configured defaults immediately so the controls reflect real values.
+        self.refresh_timer_arc('cq')
+        self.refresh_timer_arc('cqs')
+        self.refresh_timer_arc('app')
         
         status_layout.addLayout(arcs_layout)
-        
-        right_layout.addWidget(status_group)
 
-        # Graph
+        right_layout.addWidget(status_group, 0)
+
+        # Graph frame
+        self.graph_group = QGroupBox("QSO Timeline")
+        self.graph_group.setStyleSheet("QGroupBox::title { font-weight: bold; font-size: 11pt; }")
+        graph_layout = QVBoxLayout(self.graph_group)
+        graph_layout.setContentsMargins(4, 8, 4, 4)
+        # Import matplotlib lazily so the startup loading UI appears immediately.
+        from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
+        from matplotlib.figure import Figure
         self.figure = Figure()
         self.canvas = FigureCanvas(self.figure)
-        right_layout.addWidget(self.canvas)
+        self.canvas.setStyleSheet("background-color: #000000; border: 1px solid #333333;")
+        self.canvas.setMinimumHeight(55)
+        self.canvas.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Ignored)
+        graph_layout.addWidget(self.canvas)
+        self.graph_group.setMinimumHeight(self.graph_min_height)
+        self.graph_group.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        right_layout.addWidget(self.graph_group, 1)
 
-        # Log
-        log_group = QGroupBox("Log")
-        log_group.setStyleSheet("QGroupBox::title { font-weight: bold; font-size: 14pt; } QGroupBox { background-color: #f0f0f0; }")
-        log_layout = QVBoxLayout(log_group)
+        # Collapsible Log
+        self.log_group = QGroupBox("Log")
+        self.log_group.setStyleSheet("QGroupBox::title { font-weight: bold; font-size: 11pt; }")
+        self.log_group.setCheckable(True)
+        self.log_group.setChecked(self.settings.get('log_expanded', True))
+        log_layout = QVBoxLayout(self.log_group)
+
+        self.log_content = QWidget()
+        log_content_layout = QVBoxLayout(self.log_content)
         self.log_text = QTextEdit()
         self.log_text.setReadOnly(True)
-        log_layout.addWidget(self.log_text)
+        log_content_layout.addWidget(self.log_text)
+
+        log_btn_row = QHBoxLayout()
         clear_log_btn = QPushButton("Clear Log")
         clear_log_btn.clicked.connect(self.clear_log)
-        log_layout.addWidget(clear_log_btn)
+        log_btn_row.addWidget(clear_log_btn)
         export_log_btn = QPushButton("Export Log")
         export_log_btn.clicked.connect(self.export_log)
-        log_layout.addWidget(export_log_btn)
-        right_layout.addWidget(log_group)
+        log_btn_row.addWidget(export_log_btn)
+        log_content_layout.addLayout(log_btn_row)
+        log_layout.addWidget(self.log_content)
+        self.log_group.toggled.connect(self.on_log_group_toggled)
+        self.on_log_group_toggled(self.log_group.isChecked())
+        self.log_group.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        right_layout.addWidget(self.log_group, 0)
 
         # Footer
-        footer = QLabel("© 2026 FT8Clicker by 5N0YEN. MIT License.")
-        footer.setStyleSheet("font-size: 10px;")
-        right_layout.addWidget(footer)
+        self.footer = QLabel("© 2026 FT8Clicker by 5N0YEN. MIT License.")
+        self.footer.setStyleSheet("font-size: 10px; color: #8b949e;")
+        self.footer.setMinimumHeight(self.footer_min_height)
+        right_layout.addWidget(self.footer, 0)
+
+        right_layout.setStretch(0, 0)  # Status
+        right_layout.setStretch(1, 1)  # Graph
+        right_layout.setStretch(2, 1)  # Log
+        right_layout.setStretch(3, 0)  # Footer
 
         main_layout.addWidget(right_panel)
 
         # Keyboard shortcuts
         self.shortcut_s = QShortcut(QKeySequence('S'), self)
         self.shortcut_s.activated.connect(self.toggle_start_stop)
-        self.shortcut_p = QShortcut(QKeySequence('P'), self)
-        self.shortcut_p.activated.connect(self.pause_clicking)
-        self.pause_btn.setVisible(False)
-        self.pause_btn.setStyleSheet("background-color: white; color: black;")
+        self.update_window_min_height()
+        self.plot_graph()
 
         # Event filter for learning
         self.installEventFilter(self)
@@ -834,6 +948,8 @@ class FT8Clicker(QMainWindow):
                 self.flash_button(self.enable_tx_btn)
             elif button_type == 'tx6':
                 self.flash_button(self.tx6_btn)
+            elif button_type in self.band_buttons:
+                self.flash_button(self.band_buttons[button_type])
             
             if self.locating:
                 if button_type in self.learned_buttons:
@@ -927,17 +1043,14 @@ class FT8Clicker(QMainWindow):
     def start_clicking(self):
         if not self.running:
             self.running = True
-            self.paused = False
-            self.status_label.setText("Status: Running")
+            self.status_label.setText("Countdown Timers")
             self.log("Started clicking")
             self.start_btn.setText("RUNNING")
             self.start_btn.setStyleSheet("background-color: green; color: white;")
-            self.pause_btn.setVisible(True)
-            self.pause_btn.setText("PAUSE")
-            self.pause_btn.setStyleSheet("background-color: white; color: black;")
             self.cq_remaining = self.settings['cq_time']
             self.app_remaining = self.settings['app_time']
             self.cqs_remaining = self.settings['cqs_remaining']
+            self.current_band = self.settings.get('current_band', '40m')
             # Update arc progress indicators
             self.cq_arc.setValue(self.cq_remaining, self.settings['cq_time'])
             self.cqs_arc.setValue(self.cqs_remaining, self.settings['cqs_remaining'])
@@ -954,31 +1067,6 @@ class FT8Clicker(QMainWindow):
             self.last_tx_time = None
             self.enable_tx_cooldown = False
 
-    def pause_clicking(self):
-        if self.running:
-            if self.paused:
-                self.paused = False
-                self.status_label.setText("Status: Running")
-                self.log("Resumed clicking")
-                self.pause_btn.setStyleSheet("background-color: white; color: black;")
-                self.pause_btn.setText("PAUSE")
-                self.cq_timer.start(1000)
-                self.app_timer.start(1000)
-                self.graph_timer.start(100)
-                if hasattr(self, 'click_timer'):
-                    self.click_timer.start(int(self.click_interval * 1000))
-            else:
-                self.paused = True
-                self.status_label.setText("Status: Paused")
-                self.log("Paused clicking")
-                self.pause_btn.setStyleSheet("background-color: yellow; color: black;")
-                self.pause_btn.setText("PAUSED")
-                self.cq_timer.stop()
-                self.app_timer.stop()
-                self.graph_timer.stop()
-                if hasattr(self, 'click_timer'):
-                    self.click_timer.stop()
-
     def stop_clicking(self):
         # Finalize any growing bar
         if hasattr(self, 'current_bar_start') and self.current_bar_start is not None:
@@ -989,13 +1077,10 @@ class FT8Clicker(QMainWindow):
             self.plot_graph()
             
         self.running = False
-        self.paused = False
-        self.status_label.setText("Status: Stopped")
+        self.status_label.setText("Countdown Timers")
         self.log("Stopped clicking")
         self.start_btn.setText("STOPPED")
         self.start_btn.setStyleSheet("background-color: red; color: white;")
-        self.pause_btn.setVisible(False)
-        self.pause_btn.setStyleSheet("background-color: white; color: black;")
         self.cq_timer.stop()
         self.app_timer.stop()
         self.graph_timer.stop()
@@ -1003,7 +1088,7 @@ class FT8Clicker(QMainWindow):
             self.click_timer.stop()
 
     def clicking_loop(self):
-        if not self.running or self.paused:
+        if not self.running:
             return
         if self.enable_tx_cooldown:
             return
@@ -1026,7 +1111,7 @@ class FT8Clicker(QMainWindow):
                 self.log(f"Error in clicking loop for enable_tx: {e}")
 
     def auto_cq(self):
-        if self.running and not self.paused:
+        if self.running:
             self.cq_remaining -= 1
             self.cq_arc.setValue(self.cq_remaining, self.settings['cq_time'])
             if self.cq_remaining <= 0:
@@ -1107,9 +1192,28 @@ class FT8Clicker(QMainWindow):
 
     def plot_graph(self):
         self.figure.clear()
+        self.figure.patch.set_facecolor('#000000')
         ax = self.figure.add_subplot(111)
+        self.apply_fixed_graph_margins(ax)
+        ax.set_facecolor('#000000')
+        small_font = self.graph_label_font
+        tiny_font = self.graph_tick_font
         
         if not self.click_history and self.current_bar_start is None:
+            ax.set_xlim(0, 10)
+            ax.set_ylim(0, 30)
+            ax.text(0.5, 0.5, 'No graph data yet', transform=ax.transAxes, ha='center', va='center', color='#bfbfbf', fontsize=small_font)
+            ax.grid(True, which='both', axis='y', color='#2b2b2b', alpha=0.8)
+            ax.set_xlabel('')
+            ax.set_ylabel('Seconds', fontsize=small_font, labelpad=2)
+            ax.set_title('')
+            ax.xaxis.label.set_color('#d9d9d9')
+            ax.yaxis.label.set_color('#d9d9d9')
+            ax.title.set_color('#f2f2f2')
+            ax.tick_params(axis='x', colors='#cfcfcf', labelsize=tiny_font, pad=1)
+            ax.tick_params(axis='y', colors='#cfcfcf', labelsize=tiny_font, pad=1)
+            for spine in ax.spines.values():
+                spine.set_color('#4a4a4a')
             self.canvas.draw()
             return
             
@@ -1138,15 +1242,41 @@ class FT8Clicker(QMainWindow):
         ax.set_ylim(0, y_max)
         
         # Add light grey horizontal lines
-        ax.grid(True, which='both', axis='y', color='lightgrey', alpha=0.3)
+        ax.grid(True, which='both', axis='y', color='#2b2b2b', alpha=0.8)
         
-        ax.set_xlabel('Click Sequence Number')
-        ax.set_ylabel('Duration (seconds)')
-        ax.set_title('Click Event Timeline')
+        ax.set_xlabel('')
+        ax.set_ylabel('Seconds', fontsize=small_font, labelpad=2)
+        ax.set_title('')
+        ax.xaxis.label.set_color('#d9d9d9')
+        ax.yaxis.label.set_color('#d9d9d9')
+        ax.title.set_color('#f2f2f2')
+        ax.tick_params(axis='x', colors='#cfcfcf', labelsize=tiny_font, pad=1)
+        ax.tick_params(axis='y', colors='#cfcfcf', labelsize=tiny_font, pad=1)
+        for spine in ax.spines.values():
+            spine.set_color('#4a4a4a')
         
         # Remove tooltips/hover functionality
         
         self.canvas.draw()
+
+    def apply_fixed_graph_margins(self, ax):
+        # Keep constant pixel margins so whitespace does not grow with frame size.
+        left_px = 48
+        right_px = 26
+        top_px = 10
+        bottom_px = 14
+
+        fig_width_px = max(1.0, self.figure.get_figwidth() * self.figure.dpi)
+        fig_height_px = max(1.0, self.figure.get_figheight() * self.figure.dpi)
+
+        left = min(0.45, left_px / fig_width_px)
+        right = min(0.45, right_px / fig_width_px)
+        top = min(0.45, top_px / fig_height_px)
+        bottom = min(0.45, bottom_px / fig_height_px)
+
+        width = max(0.1, 1.0 - left - right)
+        height = max(0.1, 1.0 - top - bottom)
+        ax.set_position([left, bottom, width, height])
 
     def update_growing_bar(self):
         """Update the growing bar in real-time"""
@@ -1180,9 +1310,9 @@ class FT8Clicker(QMainWindow):
         interval_layout.addWidget(self.interval_spin)
         layout.addLayout(interval_layout)
 
-        # CQ Time
+        # Stay on Callsign
         cq_layout = QHBoxLayout()
-        cq_layout.addWidget(QLabel("CQ Time (s):"))
+        cq_layout.addWidget(QLabel("Stay on Callsign (s):"))
         self.cq_spin = QSpinBox()
         self.cq_spin.setValue(self.settings['cq_time'])
         self.cq_spin.setRange(60, 3000)
@@ -1190,18 +1320,18 @@ class FT8Clicker(QMainWindow):
         cq_layout.addWidget(self.cq_spin)
         layout.addLayout(cq_layout)
 
-        # CQs Remaining
+        # Tries till band change
         cqs_layout = QHBoxLayout()
-        cqs_layout.addWidget(QLabel("Consecutive CQs Remaining:"))
+        cqs_layout.addWidget(QLabel("Tries till band change:"))
         self.cqs_spin = QSpinBox()
         self.cqs_spin.setValue(self.settings['cqs_remaining'])
         self.cqs_spin.setRange(0, 100)
         cqs_layout.addWidget(self.cqs_spin)
         layout.addLayout(cqs_layout)
 
-        # App Time
+        # Until Auto Stop
         app_layout = QHBoxLayout()
-        app_layout.addWidget(QLabel("App Time (min):"))
+        app_layout.addWidget(QLabel("Until Auto Stop (min):"))
         self.app_spin = QSpinBox()
         self.app_spin.setValue(self.settings['app_time'] // 60)
         self.app_spin.setRange(5, 240)
@@ -1250,9 +1380,6 @@ class FT8Clicker(QMainWindow):
             "Start/Stop\n"
             "- STOPPED (red): automation is stopped and counters are paused.\n"
             "- RUNNING (green): counters reset to settings and automation starts.\n\n"
-            "Pause\n"
-            "- PAUSE ON (yellow): pauses all automation and timers.\n"
-            "- PAUSE OFF (white): resumes automation and timers.\n\n"
             "Learn\n"
             "- Click LEARN, select a button, move to the FT8 app button and press L.\n"
             "- Clicking outside the button list exits LEARN mode.\n\n"
@@ -1260,15 +1387,16 @@ class FT8Clicker(QMainWindow):
             "- Click LOCATE, then click a learned button to move the cursor there.\n"
             "- Clicking outside learned buttons exits LOCATE mode.\n\n"
             "WSJT-x Configuration\n"
-            "- Set TX Watchdog > CQ Time to prevent unpredictable behavior.\n\n"
+            "- Set TX Watchdog > Stay on Callsign to prevent unpredictable behavior.\n\n"
             "Screen Recording (macOS)\n"
             "- Enable Screen Recording for Visual Studio Code or your Python app.\n"
             "  System Settings → Privacy & Security → Screen Recording.\n\n"
             "Logs\n"
             "- The log records mode changes, button states, and automation actions.\n\n"
             "Counters\n"
-            "- CQ Time: Counts down until the next automatic CQ call.\n"
-            "- Consecutive CQs Left: Tracks consecutive forced CQ calls. Decrements each time a CQ is sent (manual or auto). Resets when a QSO is established (transmission enabled). When it reaches 0, the band changes automatically.\n"
+            "- Stay on Callsign: Counts down until the next automatic CQ call.\n"
+            "- Tries till band change: Tracks consecutive forced CQ calls. Decrements each time a CQ is sent (manual or auto). Resets when a QSO is established (transmission enabled). When it reaches 0, the band changes automatically.\n"
+            "- Until STOP: Counts down total runtime until automation stops.\n"
         )
         layout.addWidget(help_text)
 
@@ -1294,16 +1422,236 @@ class FT8Clicker(QMainWindow):
     def update_ui_bands(self):
         # Clear old
         for btn in list(self.band_buttons.values()):
-            self.button_layout.removeWidget(btn)
+            self.band_row_layout.removeWidget(btn)
             btn.deleteLater()
         self.band_buttons.clear()
         # Add new
         for band in self.visible_bands:
             btn = DelayedTooltipButton(band, f"Click to select {band} band or learn its position. Changes to {band} frequency in FT8 software.")
-            btn.clicked.connect(lambda checked, b=band: self.select_band(b))
-            btn.setFont(QFont("Arial", 14, QFont.Weight.Bold))
-            self.button_layout.addWidget(btn)
+            btn.clicked.connect(lambda checked, b=band: self.manual_click(b))
+            btn.setFont(QFont("Arial", 10, QFont.Weight.Bold))
+            btn.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+            insert_index = len(self.band_buttons)
+            self.band_row_layout.insertWidget(insert_index, btn, 1)
             self.band_buttons[band] = btn
+
+    def timer_control_info(self, timer_name):
+        config = {
+            'cq': ('cq_remaining', 'cq_time', self.cq_arc),
+            'cqs': ('cqs_remaining', 'cqs_remaining', self.cqs_arc),
+            'app': ('app_remaining', 'app_time', self.app_arc),
+        }
+        return config.get(timer_name)
+
+    def timer_step_value(self, timer_name):
+        step_map = {
+            'cq': 15,      # seconds
+            'cqs': 1,      # tries
+            'app': 10 * 60 # seconds (10 minutes)
+        }
+        return step_map.get(timer_name, 1)
+
+    def timer_display_name(self, timer_name):
+        names = {
+            'cq': 'Stay on Callsign',
+            'cqs': 'Tries till band change',
+            'app': 'Until Auto Stop',
+        }
+        return names.get(timer_name, timer_name)
+
+    def refresh_timer_arc(self, timer_name):
+        info = self.timer_control_info(timer_name)
+        if not info:
+            return
+        value_attr, max_setting_key, arc_widget = info
+        current = int(getattr(self, value_attr, 0))
+        maximum = int(self.settings.get(max_setting_key, 0))
+        arc_widget.setValue(max(0, current), max(0, maximum))
+
+    def adjust_timer_value(self, timer_name, delta):
+        info = self.timer_control_info(timer_name)
+        if not info:
+            return
+        value_attr, _max_setting_key, _arc_widget = info
+        current = int(getattr(self, value_attr, 0))
+        updated = max(0, current + int(delta))
+        setattr(self, value_attr, updated)
+        self.refresh_timer_arc(timer_name)
+
+    def increment_timer_value(self, timer_name):
+        step = self.timer_step_value(timer_name)
+        self.adjust_timer_value(timer_name, step)
+        info = self.timer_control_info(timer_name)
+        if info:
+            value_attr, _max_setting_key, _arc_widget = info
+            self.log(f"Timer {self.timer_display_name(timer_name)}: + ({step}) -> {getattr(self, value_attr)}")
+
+    def decrement_timer_value(self, timer_name):
+        step = self.timer_step_value(timer_name)
+        self.adjust_timer_value(timer_name, -step)
+        info = self.timer_control_info(timer_name)
+        if info:
+            value_attr, _max_setting_key, _arc_widget = info
+            self.log(f"Timer {self.timer_display_name(timer_name)}: - ({step}) -> {getattr(self, value_attr)}")
+
+    def reset_timer_value(self, timer_name):
+        info = self.timer_control_info(timer_name)
+        if not info:
+            return
+        value_attr, max_setting_key, _arc_widget = info
+        setattr(self, value_attr, int(self.settings.get(max_setting_key, 0)))
+        self.refresh_timer_arc(timer_name)
+        self.log(f"Timer {self.timer_display_name(timer_name)}: reset -> {getattr(self, value_attr)}")
+
+    def create_arc_panel(self, arc_widget, timer_name):
+        panel = QWidget()
+        panel_layout = QHBoxLayout(panel)
+        panel_layout.setContentsMargins(0, 0, 0, 0)
+        panel_layout.setSpacing(4)
+        panel_layout.addWidget(arc_widget)
+
+        controls_layout = QVBoxLayout()
+        controls_layout.setContentsMargins(0, 0, 0, 0)
+        controls_layout.setSpacing(3)
+        controls_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+
+        plus_text, minus_text = {
+            'cq': ('+15s', '-15s'),
+            'cqs': ('+1', '-1'),
+            'app': ('+10m', '-10m')
+        }.get(timer_name, ('+', '-'))
+
+        plus_btn = QPushButton(plus_text)
+        minus_btn = QPushButton(minus_text)
+        reset_btn = QPushButton("reset")
+        controls = [plus_btn, minus_btn, reset_btn]
+        for btn in controls:
+            btn.setFixedSize(52, 24)
+            btn.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+            # Override global button padding so compact timer controls do not clip text.
+            btn.setStyleSheet("padding: 0px 4px;")
+
+        plus_btn.clicked.connect(lambda: self.increment_timer_value(timer_name))
+        minus_btn.clicked.connect(lambda: self.decrement_timer_value(timer_name))
+        reset_btn.clicked.connect(lambda: self.reset_timer_value(timer_name))
+
+        controls_layout.addWidget(plus_btn)
+        controls_layout.addWidget(minus_btn)
+        controls_layout.addWidget(reset_btn)
+        panel_layout.addLayout(controls_layout)
+
+        return panel
+
+    def restore_window_geometry(self):
+        geometry = self.settings.get('window_geometry', {})
+        x = geometry.get('x', 100)
+        y = geometry.get('y', 100)
+        width = geometry.get('width', 1200)
+        height = geometry.get('height', 800)
+        min_size = self.minimumSize()
+        width = max(int(width), min_size.width())
+        height = max(int(height), min_size.height())
+        self.setGeometry(int(x), int(y), width, height)
+
+    def save_window_geometry(self):
+        geometry = self.geometry()
+        self.settings['window_geometry'] = {
+            'x': geometry.x(),
+            'y': geometry.y(),
+            'width': geometry.width(),
+            'height': geometry.height(),
+        }
+
+    def closeEvent(self, event):
+        self.save_window_geometry()
+        if hasattr(self, 'log_group'):
+            self.settings['log_expanded'] = self.log_group.isChecked()
+            self.settings['current_band'] = self.current_band
+            self.settings['window_maximized'] = self.isMaximized()
+        self.save_settings()
+        super().closeEvent(event)
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        if not hasattr(self, 'log_group') or not hasattr(self, 'status_group') or not hasattr(self, 'graph_group') or not hasattr(self, 'footer'):
+            return
+
+        # Dynamically scale graph text/minimum based on window height.
+        if self.height() < 640:
+            self.graph_label_font = 5
+            self.graph_tick_font = 4
+        else:
+            self.graph_label_font = 6
+            self.graph_tick_font = 5
+        self.graph_min_height = 55
+        self.graph_group.setMinimumHeight(self.graph_min_height)
+
+        # Hide footer first when vertical space is tight.
+        full_required_height = (
+            self.status_group.minimumHeight()
+            + self.graph_min_height
+            + self.log_expanded_min_height
+            + 120
+        )
+        if self.height() < full_required_height:
+            self.footer.setVisible(False)
+        else:
+            self.footer.setVisible(True)
+
+        # Collapse log if still too tight after footer removal.
+        required_without_footer = (
+            self.status_group.minimumHeight()
+            + self.graph_min_height
+            + self.log_expanded_min_height
+            + 90
+        )
+        if self.height() < required_without_footer and self.log_group.isChecked():
+            self.log_group.setChecked(False)
+
+        self.scroll_log_to_latest()
+        self.update_window_min_height()
+
+    def on_log_group_toggled(self, expanded):
+        if not hasattr(self, 'log_content'):
+            return
+        self.log_content.setVisible(expanded)
+        if expanded:
+            self.log_group.setMinimumHeight(self.log_expanded_min_height)
+            self.log_group.setMaximumHeight(16777215)
+            self.scroll_log_to_latest()
+            self.update_window_min_height()
+            return
+
+        # Collapse to a single title/header line.
+        collapsed_height = max(30, self.log_group.fontMetrics().height() + 14)
+        self.log_group.setMinimumHeight(collapsed_height)
+        self.log_group.setMaximumHeight(collapsed_height)
+        self.update_window_min_height()
+
+    def scroll_log_to_latest(self):
+        if not hasattr(self, 'log_text'):
+            return
+        scrollbar = self.log_text.verticalScrollBar()
+        scrollbar.setValue(scrollbar.maximum())
+
+    def update_window_min_height(self):
+        if not hasattr(self, 'log_group') or not hasattr(self, 'status_group') or not hasattr(self, 'graph_group') or not hasattr(self, 'footer'):
+            return
+
+        collapsed_log_height = max(30, self.log_group.fontMetrics().height() + 14)
+        log_required = self.log_expanded_min_height if self.log_group.isChecked() else collapsed_log_height
+        footer_required = self.footer_min_height if self.footer.isVisible() else 0
+
+        # Includes layout margins/spacing and group box paddings.
+        padding = 90
+        dynamic_min_height = (
+            self.status_group.minimumHeight()
+            + self.graph_min_height
+            + log_required
+            + footer_required
+            + padding
+        )
+        self.setMinimumHeight(max(420, dynamic_min_height))
 
     def unlearn_all(self):
         self.learned_buttons.clear()
@@ -1323,6 +1671,10 @@ class FT8Clicker(QMainWindow):
             pos = data['pos']
             try:
                 current_color, colors = get_pixel_color(pos[0], pos[1])
+            except KeyboardInterrupt:
+                # Allow Ctrl+C from terminal to stop the app without traceback noise.
+                QApplication.quit()
+                return
             except Exception as e:
                 self.log(f"Warning: Could not get pixel color for {button_type}: {e}, using default")
                 current_color, colors = None, []
@@ -1420,7 +1772,32 @@ class FT8Clicker(QMainWindow):
             )
 
 if __name__ == "__main__":
+    # Keep default Ctrl+C behavior available when launched from a terminal.
+    signal.signal(signal.SIGINT, signal.default_int_handler)
     app = QApplication(sys.argv)
-    window = FT8Clicker()
-    window.show()
-    sys.exit(app.exec())
+    startup_dialog = QProgressDialog("Starting FT8Clicker...", "", 0, 4)
+    startup_dialog.setWindowTitle("Loading")
+    startup_dialog.setCancelButton(None)
+    startup_dialog.setWindowModality(Qt.WindowModality.ApplicationModal)
+    startup_dialog.setMinimumDuration(0)
+    startup_dialog.setValue(0)
+    startup_dialog.show()
+    app.processEvents()
+
+    def startup_progress(step, message):
+        startup_dialog.setLabelText(message)
+        startup_dialog.setValue(step)
+        app.processEvents()
+
+    window = FT8Clicker(startup_progress=startup_progress)
+    startup_dialog.setValue(4)
+    startup_dialog.close()
+    if getattr(window, 'start_maximized', False):
+        window.showMaximized()
+    else:
+        window.show()
+    try:
+        sys.exit(app.exec())
+    except KeyboardInterrupt:
+        window.close()
+        sys.exit(0)

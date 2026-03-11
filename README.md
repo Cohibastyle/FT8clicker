@@ -38,7 +38,7 @@ FT8Clicker automates the FT8 workflow by:
 
 3. **Intelligent Automation**:
    - Automatically enables transmission when the "Enable Tx" button appears inactive
-   - Sends CQ calls after a configurable time interval (default: 200 seconds)
+   - Sends CQ calls after a configurable Stay on Callsign interval (default: 200 seconds)
    - Cycles through learned bands after a set number of consecutive CQs (default: 3). This counter tracks consecutive forced CQ calls, i.e., when your FT8 application repeatedly calls a station and the station doesn't reply, so when the CQ time runs out, it will force a CQ. The counter resets when a QSO is established (transmission enabled).
    - Stops automatically after a maximum runtime (default: 60 minutes)
 
@@ -87,13 +87,12 @@ Enable Screen Recording permission in System Settings → Privacy & Security →
 
 ### Keyboard Shortcuts
 - **S**: Start/Stop
-- **P**: Pause/Resume
 
 ### Troubleshooting
 - Ensure FT8 software is running and buttons are visible
 - Check screen recording permissions on macOS
 - Verify button positions are learned correctly
-- In WSJT-X, set TX Watchdog > CQ Time
+- In WSJT-X, set TX Watchdog > Stay on Callsign
 
 ## Safety Tips
 

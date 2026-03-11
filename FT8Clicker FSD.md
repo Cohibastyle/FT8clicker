@@ -253,7 +253,7 @@ For support and updates, visit the official FT8Clicker website or contact the su
 This software is licensed under the MIT License. See the LICENSE file for more information.
 
 ## Changelog
-### v0.7 (Upcoming)
+### v0.8 (Upcoming)
 - Updated default settings: CQ Interval to 1s, CQ Time to 200s, Consecutive CQs Remaining to 3, App Time to 60 minutes
 - CQ Time increments changed to 20 seconds
 - Consecutive CQ counter now resets when QSO established (Tx Enable clicked)
