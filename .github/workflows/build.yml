@@ -1,51 +1,99 @@
-build-mac:
-  runs-on: macos-latest
+name: Build FT8Clicker (Windows + macOS)
 
-  steps:
-    - name: Check out repository
-      uses: actions/checkout@v4
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: "3.11"
+jobs:
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install pyinstaller
+  # -------------------------
+  # WINDOWS BUILD
+  # -------------------------
+  build-windows:
+    runs-on: windows-latest
 
-    - name: Build macOS app
-      run: |
-        pyinstaller FT8Clicker.spec
-        echo "Build output:"
-        ls -R dist
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
 
-    - name: Install create-dmg
-      run: brew install create-dmg
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
 
-    - name: Create DMG
-      run: |
-        # Adjust this path if your .app ends up somewhere else
-        APP_PATH="dist/FT8Clicker.app"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
 
-        if [ ! -d "$APP_PATH" ]; then
-          echo "ERROR: App not found at $APP_PATH"
-          exit 1
-        fi
+      - name: Build Windows EXE
+        run: |
+          pyinstaller FT8Clicker.spec
+          echo "Build output:"
+          dir dist
 
-        create-dmg \
-          --volname "FT8Clicker" \
-          --window-pos 200 120 \
-          --window-size 600 400 \
-          --icon-size 100 \
-          --app-drop-link 400 200 \
-          "FT8Clicker.dmg" \
-          "$APP_PATH"
+      - name: Upload Windows EXE
+        uses: actions/upload-artifact@v4
+        with:
+          name: FT8Clicker-Windows
+          path: dist/FT8Clicker.exe
 
-    - name: Upload macOS DMG
-      uses: actions/upload-artifact@v4
-      with:
-        name: FT8Clicker-macOS
-        path: FT8Clicker.dmg
+
+  # -------------------------
+  # MACOS BUILD
+  # -------------------------
+  build-mac:
+    runs-on: macos-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build macOS app
+        run: |
+          pyinstaller FT8Clicker.spec
+          echo "Build output:"
+          ls -R dist
+
+      - name: Install create-dmg
+        run: brew install create-dmg
+
+      - name: Create DMG
+        run: |
+          APP_PATH="dist/FT8Clicker.app"
+
+          if [ ! -d "$APP_PATH" ]; then
+            echo "ERROR: App not found at $APP_PATH"
+            echo "Directory listing:"
+            ls -R dist
+            exit 1
+          fi
+
+          create-dmg \
+            --volname "FT8Clicker" \
+            --window-pos 200 120 \
+            --window-size 600 400 \
+            --icon-size 100 \
+            --app-drop-link 400 200 \
+            "FT8Clicker.dmg" \
+            "$APP_PATH"
+
+      - name: Upload macOS DMG
+        uses: actions/upload-artifact@v4
+        with:
+          name: FT8Clicker-macOS
+          path: FT8Clicker.dmg
